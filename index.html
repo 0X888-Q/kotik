@@ -657,6 +657,9 @@
     ctx.translate(cat.x, cat.y + (1 - sqy) * 10);
     ctx.scale(cat.facing * sqx, sqy);
     ctx.rotate(cat.tilt * (cat.onGround ? .08 : .18));
+    ctx.shadowColor = 'rgba(66, 58, 72, .3)';
+    ctx.shadowBlur = 9;
+    ctx.shadowOffsetY = 3;
 
     // лёгкий наклон в воздухе
     if (!cat.onGround) ctx.rotate(clamp(cat.vy / 4200, -.14, .14));
@@ -898,6 +901,20 @@
         ctx.beginPath(); ctx.arc(x + dx * s, y + dy * s, r * s, 0, TAU); ctx.fill();
       }
     }
+  }
+
+  function drawForeground(th, t) {
+    const off = cam.x * 1.18;
+    ctx.fillStyle = th.night ? 'rgba(6,12,20,.9)' : 'rgba(26,48,34,.62)';
+    ctx.beginPath();
+    ctx.moveTo(-20, H + 10);
+    for (let x = -20; x <= W + 20; x += 24) {
+      const wx = x + off;
+      const hgt = 22 + Math.sin(wx * .018) * 10 + noise(Math.floor(wx / 24), 61) * 24;
+      ctx.lineTo(x, H - hgt);
+    }
+    ctx.lineTo(W + 20, H + 10);
+    ctx.closePath(); ctx.fill();
   }
 
   function drawPlatform(p, th, t) {
@@ -1592,6 +1609,7 @@
       }
       drawParts();
       drawCat(t);
+      drawForeground(level.themeRef, t);
     }
 
     drawWeather();
