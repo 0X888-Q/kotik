@@ -542,66 +542,90 @@
   // локальные координаты кота: центр тела в (0,0), морда смотрит в +x
   // ---- кот: вектор с тенями, объёмом и позами по состоянию
   // ---- кот: проверенная форма, мягкая светотень без размытия силуэта
+  // ---- кот: цикл шага с покачиванием корпуса, инерция хвоста, позы в воздухе
   function drawCatBody(t, state) {
     const bw = 30, bh = 22;
     const moving = state === 'walk';
     const air = state === 'air';
     const phase = cat.walkPhase;
-    const breathe = Math.sin(t * 1.9) * 0.7;
-    const bob = moving ? Math.sin(phase * 2) * 1.2 : breathe * .4;
+    const speedK = clamp(Math.abs(cat.vx) / MAXSPEED, 0, 1);
 
-    // хвост
-    const wag = Math.sin(t * (moving ? 9 : 2.4)) * (moving ? .5 : .28);
+    const bob = moving ? Math.sin(phase * 2) * (1.2 + speedK * 1.6) : Math.sin(t * 1.9) * 0.7;
+    const headBob = moving ? Math.sin(phase * 2 - .7) * 1.1 : Math.sin(t * 1.9 - .5) * 0.5;
+    const lean = moving ? speedK * .06 : 0;
+    const wagPhase = t * (moving ? 9 : 2.4) - .7;
+    const wag = Math.sin(wagPhase) * (moving ? .55 : .3);
+
+    // хвост с запаздыванием
     ctx.lineCap = 'round';
-    ctx.strokeStyle = '#fdf7f0';
+    ctx.strokeStyle = '#f6ece3';
     ctx.lineWidth = 9;
     ctx.beginPath();
     ctx.moveTo(-bw + 2, -6 + bob);
-    ctx.quadraticCurveTo(-bw - 16, -18 - wag * 10 + bob, -bw - 24, -34 - wag * 16 + bob);
+    ctx.quadraticCurveTo(-bw - 15, -16 - wag * 10 + bob, -bw - 23, -32 - wag * 16 + bob);
     ctx.stroke();
-    ctx.strokeStyle = '#ffe9e3';
+    ctx.strokeStyle = '#fff8f2';
     ctx.lineWidth = 5.5;
     ctx.beginPath();
-    ctx.moveTo(-bw - 12, -20 + bob);
-    ctx.quadraticCurveTo(-bw - 20, -26 - wag * 8 + bob, -bw - 24, -33 - wag * 16 + bob);
+    ctx.moveTo(-bw - 11, -19 + bob);
+    ctx.quadraticCurveTo(-bw - 19, -25 - wag * 8 + bob, -bw - 23, -31 - wag * 16 + bob);
     ctx.stroke();
     ctx.fillStyle = '#ffe3d6';
-    ctx.beginPath(); ctx.ellipse(-bw - 24, -35 - wag * 16 + bob, 3.2, 4, .2, 0, TAU); ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(-bw - 23, -33 - wag * 16 + bob, 3.4, 4.2, .25, 0, TAU);
+    ctx.fill();
 
     // задние лапы
-    ctx.fillStyle = '#f6ece4';
+    ctx.fillStyle = '#f3e7dc';
     for (const side of [-1, 1]) {
-      const off = Math.sin(phase + (side > 0 ? Math.PI : 0)) * (moving ? 7 : 0);
-      roundRect(-bw + 10 + off * .5, bh - 6 + bob, 12, 16 + (air ? 4 : 0), 6);
+      const ph = Math.sin(phase + (side > 0 ? Math.PI : 0));
+      const lift = moving ? Math.max(0, ph) * 6 : 0;
+      const px = -bw + 10 + (moving ? ph * 3 : 0);
+      const py = bh - 6 + bob - lift + (air ? -2 : 0);
+      roundRect(px, py, 12, 16 + (air ? 3 : 0), 6);
       ctx.fill();
       ctx.fillStyle = '#ffc9c0';
-      ctx.beginPath(); ctx.ellipse(-bw + 16 + off * .5, bh + 8 + bob, 3, 2.2, 0, 0, TAU); ctx.fill();
-      ctx.fillStyle = '#f6ece4';
+      ctx.beginPath(); ctx.ellipse(px + 6, py + 14, 3, 2.2, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#f3e7dc';
     }
 
     // корпус
-    const g = ctx.createLinearGradient(0, -bh, 0, bh + 4);
+    ctx.save();
+    ctx.rotate(lean);
+    const g = ctx.createLinearGradient(0, -bh + bob, 0, bh + bob + 4);
     g.addColorStop(0, '#ffffff');
     g.addColorStop(.55, '#fdf8f2');
     g.addColorStop(1, '#efe1d6');
     ctx.fillStyle = g;
     ellipse(0, bob, bw, bh, 0); ctx.fill();
-    ctx.strokeStyle = 'rgba(120, 102, 104, .16)';
+    ctx.strokeStyle = 'rgba(120, 102, 104, .15)';
     ctx.lineWidth = 1.2; ctx.stroke();
 
-    // бедро и пушистый живот
     ctx.fillStyle = 'rgba(246, 234, 224, .9)';
     ellipse(-12, 4 + bob, 12, 11, -.2); ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,.92)';
     ellipse(2, bh * .42 + bob, bw * .6, bh * .48, 0); ctx.fill();
 
+    // контровой свет
+    const rim = ctx.createLinearGradient(-bw, -bh, bw * .6, bh * .3);
+    rim.addColorStop(0, 'rgba(255,255,255,0)');
+    rim.addColorStop(.55, 'rgba(255,255,255,.65)');
+    rim.addColorStop(1, 'rgba(255,244,230,0)');
+    ctx.strokeStyle = rim;
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.ellipse(0, bob, bw - 1, bh - 1, 0, -2.5, -.35);
+    ctx.stroke();
+    ctx.restore();
+
     // передние лапы
     ctx.fillStyle = '#fdf6ef';
     for (const side of [-1, 1]) {
-      const ph = Math.sin(phase + (side > 0 ? 0 : Math.PI)) * (moving ? 9 : 0);
+      const ph = Math.sin(phase + (side > 0 ? 0 : Math.PI));
+      const swing = moving ? ph * 10 : 0;
       ctx.save();
-      ctx.translate(bw - 12, bh - 2 + bob);
-      ctx.rotate(ph * .012 + (air ? (side > 0 ? -.5 : .3) : 0));
+      ctx.translate(bw - 12 + (moving ? ph * 2 : 0), bh - 2 + bob);
+      ctx.rotate(air ? (side > 0 ? -.6 : .35) : swing * .016);
       roundRect(-6, -2, 11, 18, 5); ctx.fill();
       ctx.fillStyle = '#ffc9c0';
       ellipse(0, 12, 3.4, 2.6, 0); ctx.fill();
@@ -610,15 +634,17 @@
     }
 
     // голова
-    const hx = bw - 4, hy = -bh * .52 + bob * .6;
+    const hx = bw - 4, hy = -bh * .52 + bob * .5 + headBob;
     ctx.save();
     ctx.translate(hx, hy);
-    ctx.rotate(cat.tilt * .18);
+    ctx.rotate(cat.tilt * .18 + (air ? clamp(-cat.vy / 5000, -.12, .12) : 0));
 
+    // уши: в прыжке прижаты, при падении подняты
+    const earTilt = air ? (cat.vy < 0 ? .28 : -.16) : cat.ear;
     for (const s of [-1, 1]) {
       ctx.save();
       ctx.translate(s * 11, -13);
-      ctx.rotate(s * (.18 + cat.ear * .22) + (air ? s * .1 : 0));
+      ctx.rotate(s * (.18 + earTilt * .3));
       ctx.fillStyle = '#fffdfb';
       ctx.beginPath();
       ctx.moveTo(-7, 6); ctx.quadraticCurveTo(0, -16, 7, 6); ctx.quadraticCurveTo(0, 3, -7, 6);
@@ -641,7 +667,7 @@
     ellipse(-7, 6, 6, 4); ctx.fill();
     ellipse(8, 6, 6, 4); ctx.fill();
 
-    // глаза: тёмные с бликом, моргание
+    // глаза
     const blink = cat.blink > 0 ? Math.max(.08, 1 - cat.blink * 4) : 1;
     for (const s of [-1, 1]) {
       const ex = s * 7.4 + 1.6, ey = -2.4;
@@ -663,12 +689,13 @@
     ctx.moveTo(3.5, 6.8); ctx.quadraticCurveTo(3.5, 9.4, 6, 9.4);
     ctx.stroke();
 
-    // усы
+    // усы чуть шевелятся
     ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 1.2;
+    const wisp = Math.sin(t * 3.1) * .8;
     for (let i = -1; i <= 1; i++) {
       ctx.beginPath();
       ctx.moveTo(10, 4 + i * 3);
-      ctx.quadraticCurveTo(20, 2 + i * 5, 27, 4 + i * 7);
+      ctx.quadraticCurveTo(20, 2 + i * 5 + wisp, 27, 4 + i * 7 + wisp);
       ctx.stroke();
     }
     ctx.fillStyle = 'rgba(255,255,255,.55)';
@@ -962,13 +989,13 @@
       if (th.decor === 'yard') {
         ctx.strokeStyle = 'rgba(255,255,255,.42)';
         ctx.lineWidth = 4;
-        const fy = 494;
+        const fy = 470;
         for (let i = 0; i < 26; i++) {
           const x = ((i * 46 - off) % (W + 300) + W + 300) % (W + 300) - 150;
-          ctx.beginPath(); ctx.moveTo(x, fy); ctx.lineTo(x, fy + 68); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(x, fy); ctx.lineTo(x, fy + 44); ctx.stroke();
         }
-        ctx.beginPath(); ctx.moveTo(-50, fy + 12); ctx.lineTo(W + 50, fy + 12); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(-50, fy + 40); ctx.lineTo(W + 50, fy + 40); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-50, fy + 8); ctx.lineTo(W + 50, fy + 8); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-50, fy + 28); ctx.lineTo(W + 50, fy + 28); ctx.stroke();
       }
     }
   }
