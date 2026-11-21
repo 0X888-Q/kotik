@@ -1137,7 +1137,7 @@
       theme: 0, width: 3500, par: 42, spawn: { x: 150, y: 500 },
       mission: { type: 'collect', need: 5, text: 'Собери 5 рыбок и вернись к дому' },
       platforms: [
-        plat(-100, 560, 900), plat(1000, 560, 720), plat(1820, 560, 520), plat(2440, 560, 1160),
+        plat(-100, 560, 930), plat(930, 560, 730), plat(1750, 560, 560), plat(2370, 560, 1130),
         plat(640, 440, 170, 'wood'), plat(1180, 430, 190, 'wood'), plat(1520, 350, 160, 'wood'),
         plat(2060, 450, 180, 'wood'), plat(2600, 420, 190, 'wood'), plat(2880, 330, 170, 'wood')
       ],
@@ -1152,33 +1152,33 @@
       theme: 1, width: 3800, par: 55, spawn: { x: 140, y: 500 },
       mission: { type: 'escort', need: 8, text: 'Найди мышку в лесу и проводи её к двери' },
       platforms: [
-        plat(-100, 560, 760), plat(860, 560, 620), plat(1660, 560, 500), plat(2340, 560, 620), plat(3120, 560, 780),
+        plat(-100, 560, 760), plat(800, 560, 670), plat(1600, 560, 600), plat(2280, 560, 620), plat(3040, 560, 760),
         plat(700, 450, 150, 'wood'), plat(1080, 400, 170, 'wood'), plat(1420, 470, 150, 'wood'),
-        plat(1860, 420, 160, 'wood'), plat(2180, 350, 150, 'wood'), plat(2560, 440, 170, 'wood'),
+        plat(1860, 420, 160, 'wood'), plat(2160, 430, 170, 'wood'), plat(2560, 440, 170, 'wood'),
         plat(2900, 360, 160, 'wood')
       ],
       fish: [
         { x: 730, y: 410 }, { x: 1110, y: 360 }, { x: 1450, y: 430 }, { x: 1890, y: 380 },
-        { x: 2210, y: 310 }, { x: 2590, y: 400 }, { x: 2930, y: 320 }, { x: 3300, y: 500 }
+        { x: 2210, y: 350 }, { x: 2590, y: 400 }, { x: 2930, y: 320 }, { x: 3300, y: 500 }
       ],
       door: { x: 3700, y: 560 }, lanterns: [], crows: [],
-      puddles: [], mice: [{ x: 2210, y: 320 }]
+      puddles: [], mice: [{ x: 2210, y: 410 }]
     },
     {
       id: 3, title: 'Крыши на закате', sub: 'Закат, черепица и вороны, которые не любят гостей.',
       theme: 2, width: 4000, par: 60, spawn: { x: 150, y: 500 },
       mission: { type: 'collect', need: 7, text: 'Собери 7 рыбок на крышах, не задев ворон' },
       platforms: [
-        plat(-100, 560, 620), plat(760, 560, 380), plat(1420, 560, 420), plat(2080, 560, 360),
-        plat(2720, 560, 420), plat(3380, 560, 720),
+        plat(-100, 560, 670), plat(700, 560, 410), plat(1240, 560, 450), plat(1820, 560, 390),
+        plat(2340, 560, 450), plat(2920, 560, 450), plat(3500, 560, 700),
         plat(560, 470, 160, 'wood'), plat(1000, 420, 150, 'wood'),
         plat(1600, 460, 160, 'wood'), plat(1960, 380, 150, 'wood'),
         plat(2360, 470, 150, 'wood'), plat(2600, 400, 150, 'wood'),
-        plat(3000, 450, 160, 'wood'), plat(3240, 360, 150, 'wood')
+        plat(3000, 450, 160, 'wood'), plat(3200, 400, 160, 'wood')
       ],
       fish: [
         { x: 600, y: 430 }, { x: 1040, y: 380 }, { x: 1640, y: 420 }, { x: 2000, y: 340 },
-        { x: 2400, y: 430 }, { x: 2640, y: 360 }, { x: 3280, y: 320 }
+        { x: 2400, y: 430 }, { x: 2640, y: 360 }, { x: 3280, y: 360 }
       ],
       door: { x: 3940, y: 560 }, lanterns: [],
       crows: [{ x: 1300, y: 380, amp: 90, len: 320, speed: .5, ph: 0 }, { x: 2500, y: 330, amp: 70, len: 260, speed: .7, ph: 2 }],
@@ -1189,7 +1189,7 @@
       theme: 3, width: 3900, par: 62, spawn: { x: 150, y: 500 },
       mission: { type: 'collect', need: 9, text: 'Собери 9 светлячков в темноте' },
       platforms: [
-        plat(-100, 560, 820), plat(920, 560, 560), plat(1620, 560, 520), plat(2300, 560, 600), plat(3060, 560, 840),
+        plat(-100, 560, 850), plat(880, 560, 590), plat(1600, 560, 550), plat(2280, 560, 630), plat(3040, 560, 860),
         plat(760, 460, 150, 'wood'), plat(1160, 400, 160, 'wood'), plat(1480, 470, 150, 'wood'),
         plat(1860, 420, 160, 'wood'), plat(2140, 340, 150, 'wood'), plat(2540, 450, 160, 'wood'),
         plat(2860, 360, 150, 'wood')
@@ -1209,16 +1209,16 @@
       theme: 4, width: 4200, par: 80, spawn: { x: 150, y: 500 },
       mission: { type: 'timed', need: 12, limit: 90, text: 'Собери 12 рыбок за 90 секунд' },
       platforms: [
-        plat(-100, 560, 700), plat(780, 560, 460), plat(1380, 560, 520), plat(2020, 560, 480),
-        plat(2620, 560, 520), plat(3260, 560, 940),
+        plat(-100, 560, 730), plat(760, 560, 490), plat(1380, 560, 550), plat(2060, 560, 510),
+        plat(2700, 560, 550), plat(3380, 560, 820),
         plat(620, 470, 150, 'wood'), plat(980, 410, 160, 'wood'), plat(1250, 470, 150, 'wood'),
-        plat(1620, 400, 160, 'wood'), plat(1900, 330, 150, 'wood'), plat(2240, 450, 160, 'wood'),
-        plat(2540, 380, 150, 'wood'), plat(2880, 460, 160, 'wood'), plat(3140, 380, 150, 'wood')
+        plat(1620, 400, 160, 'wood'), plat(1900, 360, 150, 'wood'), plat(2240, 450, 160, 'wood'),
+        plat(2540, 380, 150, 'wood'), plat(2880, 460, 160, 'wood'), plat(3140, 390, 150, 'wood')
       ],
       fish: [
         { x: 660, y: 430 }, { x: 1020, y: 370 }, { x: 1290, y: 430 }, { x: 1660, y: 360 },
-        { x: 1940, y: 290 }, { x: 2280, y: 410 }, { x: 2580, y: 340 }, { x: 2920, y: 420 },
-        { x: 3180, y: 340 }, { x: 3430, y: 480 }, { x: 3680, y: 420 }, { x: 3880, y: 500 }
+        { x: 1940, y: 320 }, { x: 2280, y: 410 }, { x: 2580, y: 340 }, { x: 2920, y: 420 },
+        { x: 3180, y: 350 }, { x: 3430, y: 480 }, { x: 3680, y: 420 }, { x: 3880, y: 500 }
       ],
       door: { x: 4100, y: 560 }, lanterns: [],
       crows: [{ x: 1700, y: 300, amp: 70, len: 280, speed: .65, ph: 0 }, { x: 3000, y: 320, amp: 80, len: 300, speed: .55, ph: 3 }],
@@ -1240,6 +1240,7 @@
     cat.vx = 0; cat.vy = 0; cat.onGround = false; cat.facing = 1;
     cat.sq = 1; cat.sqv = 0; cat.tilt = 0; cat.blink = 0; cat.blinkTimer = 1.5;
     cat.groundY = L.spawn.y + 26;
+    cat.lastSafe = { x: L.spawn.x, y: L.spawn.y };
     cam.x = clamp(cat.x - W / 2, 0, Math.max(0, L.width - W));
     cam.y = 0; cam.shake = 0;
     parts.length = 0;
@@ -1274,8 +1275,9 @@
   }
 
   // ============================================================ физика
-  const GRAV = 2450, JUMP = 880, MAXFALL = 1500;
-  const ACC = 4200, FRICTION = 3600, MAXSPEED = 330;
+  const GRAV = 2450, JUMP = 920, MAXFALL = 1300;
+  const ACC = 4700, FRICTION = 3600, MAXSPEED = 360;
+  const FALL_MULT = 1.55;
 
   function playerBox() {
     return { x: cat.x - 24, y: cat.y - 22, w: 48, h: 44 };
@@ -1319,10 +1321,12 @@
       puff(cat.x, cat.y + 22, 5, .8);
       Audio2.sfx.jump();
     }
-    // короткий прыжок при отпускании
-    if (!keys.jump && cat.vy < -260) cat.vy += GRAV * 1.9 * dt;
+    // короткий прыжок: однократный срез скорости в момент отпускания (как в Celeste)
+    if (cat.jumpHeld && !keys.jump && cat.vy < -200) cat.vy *= 0.55;
+    cat.jumpHeld = keys.jump;
 
-    cat.vy = Math.min(cat.vy + GRAV * (cat.vy > 0 ? 1.28 : 1) * dt, MAXFALL);
+    const gMul = (keys.jump && Math.abs(cat.vy) < 170) ? 0.72 : (cat.vy > 0 ? FALL_MULT : 1);
+    cat.vy = Math.min(cat.vy + GRAV * gMul * dt, MAXFALL);
 
     // X
     cat.x += cat.vx * dt;
@@ -1364,6 +1368,14 @@
       cat.groundY = groundY;
       const stand = game.platforms.find(p => Math.abs((p.y + p.dy) - groundY) < 1 && cat.x + 20 > p.x + p.dx && cat.x - 20 < p.x + p.dx + p.w);
       if (stand && stand.move) cat.x += stand.dxPrev || 0;
+      // контрольная точка: запоминаем безопасное место, если до краёв далеко
+      if (stand) {
+        const leftPad = cat.x - (stand.x + stand.dx);
+        const rightPad = (stand.x + stand.dx + stand.w) - cat.x;
+        if (leftPad > 46 && rightPad > 46) {
+          cat.lastSafe = { x: cat.x, y: cat.y };
+        }
+      }
     }
 
     if (cat.y > 900) { respawn(); }
@@ -1396,9 +1408,14 @@
   }
 
   function respawn() {
-    cat.x = level.spawn.x; cat.y = level.spawn.y;
-    cat.vx = 0; cat.vy = 0; cam.shake = .2;
-    toast('Котик вернулся на старт');
+    game.falls = (game.falls || 0) + 1;
+    const safe = cat.lastSafe;
+    const toSafe = safe && Math.abs(safe.x - level.spawn.x) > 120;
+    cat.x = toSafe ? safe.x : level.spawn.x;
+    cat.y = toSafe ? safe.y : level.spawn.y;
+    cat.vx = 0; cat.vy = 0; cat.onGround = false; cam.shake = .2;
+    puff(cat.x, cat.y + 20, 8, .7);
+    toast(toSafe ? 'Котик вернулся на площадку' : 'Котик вернулся на старт');
     Audio2.sfx.bump();
   }
 
@@ -1449,6 +1466,16 @@
     setTimeout(() => showResult(stars), 520);
   }
 
+  function failLevel(reason) {
+    if (game.finished) return;
+    game.finished = true;
+    game.state = 'result';
+    Audio2.stopMusic();
+    Audio2.sfx.bump();
+    addShake(.3);
+    setTimeout(function () { showResult(0, reason); }, 380);
+  }
+
   function computeStars() {
     const m = level.mission;
     const allFish = m.type === 'escort' ? true : game.fish >= m.need;
@@ -1475,7 +1502,14 @@
     // рыбки
     for (const f of game.fishes) {
       if (!f.alive) continue;
-      if (Math.hypot(f.x - cat.x, f.y - (cat.y - 4)) < 46) {
+      const fy = f.y + Math.sin(game.t * 2.2 + f.ph) * 6;
+      const d = Math.hypot(f.x - cat.x, fy - (cat.y - 4));
+      // мягкое притяжение: рыбка слегка тянется к коту, если он рядом
+      if (d < 96 && d > 0.001) {
+        f.x += (cat.x - f.x) * Math.min(1, 4 * dt);
+        f.y += ((cat.y - 4) - f.y) * Math.min(1, 4 * dt);
+      }
+      if (d < 54) {
         f.alive = false;
         game.fish++;
         sparkle(f.x, f.y, f.gold ? '#ffe6ad' : '#ffc98a', 12);
@@ -1532,10 +1566,7 @@
       finishLevel();
     }
     if (level.mission.type === 'timed' && game.time > level.mission.limit && !game.finished) {
-      if (game.time > level.mission.limit + 1.2) {
-        toast('Время вышло — попробуй ещё');
-        loadLevel(level.id - 1);
-      }
+      failLevel('Время вышло');
     }
 
     updateHUD(false, prog);
@@ -1708,14 +1739,14 @@
     });
   }
 
-  function showResult(stars) {
+  function showResult(stars, reason) {
     el('resStars').innerHTML = Array.from({ length: 3 }, (_, i) =>
       i < stars ? '<i>★</i>' : '★').join('');
-    el('resTitle').textContent = stars === 3 ? 'Идеально!' : stars === 2 ? 'Глава пройдена' : 'Дошёл до дома';
-    el('resFish').textContent = game.fish + '/' + level.mission.need;
+    el('resTitle').textContent = reason || (stars === 3 ? 'Идеально!' : stars === 2 ? 'Глава пройдена' : 'Дошёл до дома');
+    el('resFish').textContent = game.fish + '/' + (level.mission.type === 'escort' ? game.fishes.length : level.mission.need);
     el('resTime').textContent = game.time.toFixed(1) + ' с';
     el('resPar').textContent = level.par.toFixed(0) + ' с';
-    el('btnNext').style.display = level.id < LEVELS.length ? '' : 'none';
+    el('btnNext').style.display = (level.id < LEVELS.length && stars > 0) ? '' : 'none';
     showScreen('scrResult');
     el('hud').classList.remove('on');
   }
@@ -1823,8 +1854,18 @@
     load: i => loadLevel(i),
     teleport: (x, y) => { cat.x = x; cat.y = y; cat.vx = 0; cat.vy = 0; },
     finish: () => { game.time = Math.min(game.time, level.par * .8); finishLevel(); },
+    setTime: v => { game.time = v; },
     collectAll: () => { game.fishes.forEach(f => { if (f.alive) { f.alive = false; game.fish++; } }); },
     door: () => level.door,
+    world: () => ({
+      platforms: game.platforms.map(p => ({ x: p.x + (p.dx || 0), y: p.y + (p.dy || 0), w: p.w, h: p.h, type: p.type })),
+      fishes: game.fishes.filter(f => f.alive).map(f => ({ x: f.x, y: f.y })),
+      door: level.door,
+      mission: level.mission.type,
+      need: level.mission.need,
+      done: game.doorsOpen
+    }),
+    get falls() { return game.falls || 0; },
     mice: () => game.mice.map(m => ({ x: m.x, y: m.y, following: m.following, atDoor: m.atDoor })),
     hud: () => document.getElementById('mText').textContent,
     keys
