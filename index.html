@@ -465,9 +465,12 @@
   const weather = { type: 'none', drops: [], t: 0 };
   function setWeather(type) {
     weather.type = type; weather.drops.length = 0;
-    const n = type === 'rain' ? 150 : type === 'leaves' ? 26 : 0;
+    const n = type === 'rain' ? 150 : type === 'leaves' ? 26 : type === 'snow' ? 120 : 0;
     for (let i = 0; i < n; i++) weather.drops.push({
-      x: rand(0, W), y: rand(-H, H), v: rand(420, 720), s: rand(.5, 1)
+      x: rand(0, W), y: rand(-H, H),
+      v: type === 'snow' ? rand(26, 62) : rand(420, 720),
+      s: type === 'snow' ? rand(.7, 1.8) : rand(.5, 1),
+      ph: rand(0, TAU)
     });
   }
   function stepWeather(dt) {
@@ -475,6 +478,13 @@
       for (const d of weather.drops) {
         d.y += d.v * dt; d.x -= 90 * dt;
         if (d.y > H + 20) { d.y = -20; d.x = rand(0, W + 200); }
+      }
+    } else if (weather.type === 'snow') {
+      weather.t += dt;
+      for (const d of weather.drops) {
+        d.y += d.v * dt;
+        d.x += Math.sin(weather.t * 1.2 + d.ph) * 16 * dt;
+        if (d.y > H + 8) { d.y = -8; d.x = rand(0, W); }
       }
     } else if (weather.type === 'leaves') {
       weather.t += dt;
@@ -488,6 +498,12 @@
     }
   }
   function drawWeather() {
+    if (weather.type === 'snow') {
+      ctx.fillStyle = 'rgba(255,255,255,.85)';
+      for (const d of weather.drops) {
+        ctx.beginPath(); ctx.arc(d.x, d.y, d.s * 1.5, 0, TAU); ctx.fill();
+      }
+    }
     if (weather.type === 'rain') {
       ctx.strokeStyle = 'rgba(190, 220, 255, .38)';
       ctx.lineWidth = 1.4;
@@ -524,75 +540,91 @@
   }
 
   // локальные координаты кота: центр тела в (0,0), морда смотрит в +x
+  // ---- кот: вектор с тенями, объёмом и позами по состоянию
+  // ---- кот: проверенная форма, мягкая светотень без размытия силуэта
   function drawCatBody(t, state) {
-    const bw = 30, bh = 22;             // полудлины тела
-    const legPhase = cat.walkPhase;
+    const bw = 30, bh = 22;
     const moving = state === 'walk';
     const air = state === 'air';
+    const phase = cat.walkPhase;
+    const breathe = Math.sin(t * 1.9) * 0.7;
+    const bob = moving ? Math.sin(phase * 2) * 1.2 : breathe * .4;
 
-    // Хвост: безье, машет в фазе с шагом
-    const tailWag = Math.sin(t * (moving ? 9 : 2.4)) * (moving ? .5 : .28);
-    ctx.strokeStyle = '#fdf7f0';
+    // хвост
+    const wag = Math.sin(t * (moving ? 9 : 2.4)) * (moving ? .5 : .28);
     ctx.lineCap = 'round';
+    ctx.strokeStyle = '#fdf7f0';
     ctx.lineWidth = 9;
     ctx.beginPath();
-    ctx.moveTo(-bw + 2, -6);
-    ctx.quadraticCurveTo(-bw - 16, -18 - tailWag * 10, -bw - 24, -34 - tailWag * 16);
+    ctx.moveTo(-bw + 2, -6 + bob);
+    ctx.quadraticCurveTo(-bw - 16, -18 - wag * 10 + bob, -bw - 24, -34 - wag * 16 + bob);
     ctx.stroke();
-    ctx.lineWidth = 5.5;
     ctx.strokeStyle = '#ffe9e3';
+    ctx.lineWidth = 5.5;
     ctx.beginPath();
-    ctx.moveTo(-bw - 12, -20);
-    ctx.quadraticCurveTo(-bw - 20, -26 - tailWag * 8, -bw - 24, -33 - tailWag * 16);
+    ctx.moveTo(-bw - 12, -20 + bob);
+    ctx.quadraticCurveTo(-bw - 20, -26 - wag * 8 + bob, -bw - 24, -33 - wag * 16 + bob);
     ctx.stroke();
+    ctx.fillStyle = '#ffe3d6';
+    ctx.beginPath(); ctx.ellipse(-bw - 24, -35 - wag * 16 + bob, 3.2, 4, .2, 0, TAU); ctx.fill();
 
-    // Задние лапы
+    // задние лапы
     ctx.fillStyle = '#f6ece4';
     for (const side of [-1, 1]) {
-      const off = Math.sin(legPhase + (side > 0 ? Math.PI : 0)) * (moving ? 7 : 0);
-      roundRect(-bw + 10 + off * .5, bh - 6, 12, 16 + (air ? 4 : 0), 6);
+      const off = Math.sin(phase + (side > 0 ? Math.PI : 0)) * (moving ? 7 : 0);
+      roundRect(-bw + 10 + off * .5, bh - 6 + bob, 12, 16 + (air ? 4 : 0), 6);
       ctx.fill();
+      ctx.fillStyle = '#ffc9c0';
+      ctx.beginPath(); ctx.ellipse(-bw + 16 + off * .5, bh + 8 + bob, 3, 2.2, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#f6ece4';
     }
 
-    // Тело
-    const g = ctx.createLinearGradient(0, -bh, 0, bh);
-    g.addColorStop(0, '#ffffff'); g.addColorStop(.55, '#fdf8f2'); g.addColorStop(1, '#efe1d6');
+    // корпус
+    const g = ctx.createLinearGradient(0, -bh, 0, bh + 4);
+    g.addColorStop(0, '#ffffff');
+    g.addColorStop(.55, '#fdf8f2');
+    g.addColorStop(1, '#efe1d6');
     ctx.fillStyle = g;
-    ellipse(0, 0, bw, bh, 0); ctx.fill();
-    // пушистый живот
-    ctx.fillStyle = 'rgba(255,255,255,.9)';
-    ellipse(2, bh * .42, bw * .62, bh * .5, 0); ctx.fill();
+    ellipse(0, bob, bw, bh, 0); ctx.fill();
+    ctx.strokeStyle = 'rgba(120, 102, 104, .16)';
+    ctx.lineWidth = 1.2; ctx.stroke();
 
-    // Передние лапы
+    // бедро и пушистый живот
+    ctx.fillStyle = 'rgba(246, 234, 224, .9)';
+    ellipse(-12, 4 + bob, 12, 11, -.2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.92)';
+    ellipse(2, bh * .42 + bob, bw * .6, bh * .48, 0); ctx.fill();
+
+    // передние лапы
     ctx.fillStyle = '#fdf6ef';
     for (const side of [-1, 1]) {
-      const ph = Math.sin(legPhase + (side > 0 ? 0 : Math.PI)) * (moving ? 9 : 0);
+      const ph = Math.sin(phase + (side > 0 ? 0 : Math.PI)) * (moving ? 9 : 0);
       ctx.save();
-      ctx.translate(bw - 12, bh - 2);
+      ctx.translate(bw - 12, bh - 2 + bob);
       ctx.rotate(ph * .012 + (air ? (side > 0 ? -.5 : .3) : 0));
       roundRect(-6, -2, 11, 18, 5); ctx.fill();
-      // подушечки
       ctx.fillStyle = '#ffc9c0';
       ellipse(0, 12, 3.4, 2.6, 0); ctx.fill();
       ctx.fillStyle = '#fdf6ef';
       ctx.restore();
     }
 
-    // Голова
-    const hx = bw - 4, hy = -bh * .52;
+    // голова
+    const hx = bw - 4, hy = -bh * .52 + bob * .6;
     ctx.save();
     ctx.translate(hx, hy);
     ctx.rotate(cat.tilt * .18);
 
-    // уши
     for (const s of [-1, 1]) {
       ctx.save();
       ctx.translate(s * 11, -13);
-      ctx.rotate(s * (.18 + cat.ear * .22));
+      ctx.rotate(s * (.18 + cat.ear * .22) + (air ? s * .1 : 0));
       ctx.fillStyle = '#fffdfb';
       ctx.beginPath();
       ctx.moveTo(-7, 6); ctx.quadraticCurveTo(0, -16, 7, 6); ctx.quadraticCurveTo(0, 3, -7, 6);
       ctx.fill();
+      ctx.strokeStyle = 'rgba(120, 102, 104, .18)';
+      ctx.lineWidth = 1; ctx.stroke();
       ctx.fillStyle = '#ffb7b0';
       ctx.beginPath();
       ctx.moveTo(-3.6, 3.4); ctx.quadraticCurveTo(0, -10, 3.6, 3.4); ctx.quadraticCurveTo(0, 1.6, -3.6, 3.4);
@@ -603,12 +635,13 @@
     // морда
     ctx.fillStyle = '#fffdfb';
     ellipse(0, 0, 19, 17, 0); ctx.fill();
-    // щёки
+    ctx.strokeStyle = 'rgba(120, 102, 104, .18)';
+    ctx.lineWidth = 1.2; ctx.stroke();
     ctx.fillStyle = 'rgba(255, 226, 220, .55)';
     ellipse(-7, 6, 6, 4); ctx.fill();
     ellipse(8, 6, 6, 4); ctx.fill();
 
-    // глаза
+    // глаза: тёмные с бликом, моргание
     const blink = cat.blink > 0 ? Math.max(.08, 1 - cat.blink * 4) : 1;
     for (const s of [-1, 1]) {
       const ex = s * 7.4 + 1.6, ey = -2.4;
@@ -638,12 +671,10 @@
       ctx.quadraticCurveTo(20, 2 + i * 5, 27, 4 + i * 7);
       ctx.stroke();
     }
-    // блик на голове
     ctx.fillStyle = 'rgba(255,255,255,.55)';
     ellipse(-6, -9, 5.5, 3.2, -.4); ctx.fill();
     ctx.restore();
   }
-
   function drawCat(t) {
     const state = !cat.onGround ? 'air' : Math.abs(cat.vx) > 12 ? 'walk' : 'idle';
     const sqy = cat.sq, sqx = 1 / Math.sqrt(sqy);
@@ -660,9 +691,6 @@
     ctx.translate(cat.x, cat.y + (1 - sqy) * 10);
     ctx.scale(cat.facing * sqx, sqy);
     ctx.rotate(cat.tilt * (cat.onGround ? .08 : .18));
-    ctx.shadowColor = 'rgba(66, 58, 72, .3)';
-    ctx.shadowBlur = 9;
-    ctx.shadowOffsetY = 3;
 
     // лёгкий наклон в воздухе
     if (!cat.onGround) ctx.rotate(clamp(cat.vy / 4200, -.14, .14));
@@ -710,6 +738,16 @@
       sky: ['#8fa6b8', '#6f8598', '#a9becb'], sun: { x: 1020, y: 130, r: 40, c: '#dfe9f2', glow: 'rgba(220,235,250,.3)' },
       hills: ['#7f97a5', '#63798a', '#48606e'], ground: ['#6f9a6a', '#4a7350', '#2f4f3c'], soil: ['#5d4a3c', '#382c26'],
       accent: '#9fd6c2', fog: 'rgba(200,220,235,.4)', night: false, weather: 'rain', decor: 'rain', music: 4, name: 'ливень'
+    },
+    { // 6 — снег
+      sky: ['#dfe9f7', '#b9cfe6', '#eef5ff'], sun: { x: 900, y: 120, r: 38, c: '#fdfdff', glow: 'rgba(232,242,255,.38)' },
+      hills: ['#cfdced', '#aec3d8', '#8ca4bd'], ground: ['#f4f9ff', '#dbe8f4', '#c2d5e6'], soil: ['#7b8794', '#4f5b68'],
+      accent: '#9fd6ff', fog: 'rgba(242,248,255,.5)', night: false, weather: 'snow', decor: 'snow', music: 1, name: 'снег'
+    },
+    { // 7 — чердак
+      sky: ['#241d2e', '#33283c', '#453349'], sun: { x: 1050, y: 170, r: 15, c: '#ffe2ae', glow: 'rgba(255,200,120,.22)' },
+      hills: ['#3b3145', '#332a3d', '#2b2334'], ground: ['#96714f', '#7a5a3d', '#5c442e'], soil: ['#5a4331', '#3a2b20'],
+      accent: '#ffb27a', fog: 'rgba(64,44,32,.42)', night: false, weather: 'none', decor: 'attic', music: 3, name: 'чердак'
     }
   ];
 
@@ -717,6 +755,21 @@
   const nightCv = document.createElement('canvas');
   nightCv.width = W; nightCv.height = H;
   const nctx = nightCv.getContext('2d');
+
+  // верно мелкое зерно плёнки: рисуется тайлом поверх кадра
+  const grainCv = document.createElement('canvas');
+  grainCv.width = grainCv.height = 128;
+  (function () {
+    const g = grainCv.getContext('2d');
+    const img = g.createImageData(128, 128);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const v = 110 + Math.random() * 90;
+      img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+      img.data[i + 3] = 22;
+    }
+    g.putImageData(img, 0, 0);
+  })();
+  const grainPattern = ctx.createPattern(grainCv, 'repeat');
 
   function skyGradient(th) {
     const g = ctx.createLinearGradient(0, 0, 0, H);
@@ -754,6 +807,11 @@
     glow.addColorStop(0, th.sun.glow); glow.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = glow;
     ctx.fillRect(sx - th.sun.r * 2.6, sy - th.sun.r * 2.6, th.sun.r * 5.2, th.sun.r * 5.2);
+    if (th.decor === 'attic') {
+      ctx.strokeStyle = 'rgba(30,24,30,.7)';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(sx, -40); ctx.lineTo(sx, sy - th.sun.r); ctx.stroke();
+    }
     ctx.fillStyle = th.sun.c;
     ctx.beginPath(); ctx.arc(sx, sy, th.sun.r, 0, TAU); ctx.fill();
     if (th.night) {
@@ -841,7 +899,24 @@
 
   function drawMidLayer(th, t) {
     const off = cam.x * .45;
-    if (th.decor === 'roofs' || th.decor === 'town') {
+    if (th.decor === 'attic') {
+      for (let i = 0; i < 18; i++) {
+        const w = 70 + noise(i, 91) * 150;
+        const h = 60 + noise(i, 92) * 190;
+        const x = ((i * 200 - off) % (W + 500) + W + 500) % (W + 500) - 250;
+        const y = 572 - h - noise(i, 93) * 60;
+        ctx.fillStyle = 'rgba(28, 21, 30, .92)';
+        roundRect(x, y, w, h, 4); ctx.fill();
+        ctx.strokeStyle = 'rgba(120, 90, 70, .28)';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(x + 4, y + h * .45); ctx.lineTo(x + w - 4, y + h * .45); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x + 4, y + h * .72); ctx.lineTo(x + w - 4, y + h * .72); ctx.stroke();
+        if (noise(i, 94) > .62) {
+          ctx.fillStyle = 'rgba(255, 198, 120, .5)';
+          ctx.fillRect(x + w * .3, y + 18, 12, 16);
+        }
+      }
+    } else if (th.decor === 'roofs' || th.decor === 'town') {
       // силуэты домов с окнами
       for (let i = 0; i < 14; i++) {
         const w = 120 + noise(i, 11) * 150;
@@ -869,6 +944,12 @@
         const s = .85 + noise(i, 21) * .75;
         const y = 572 - noise(i, 22) * 24;
         drawTreeSilhouette(x, y, s, th.hills[1], 'rgba(48,62,50,.6)', th.hills[0]);
+        if (th.decor === 'snow') {
+          ctx.fillStyle = 'rgba(255,255,255,.82)';
+          ctx.beginPath(); ctx.ellipse(x, y - 118 * s + 6, 26 * s, 9 * s, 0, 0, TAU); ctx.fill();
+          ctx.beginPath(); ctx.ellipse(x - 18 * s, y - 106 * s, 14 * s, 6 * s, 0, 0, TAU); ctx.fill();
+          ctx.beginPath(); ctx.ellipse(x + 18 * s, y - 106 * s, 14 * s, 6 * s, 0, 0, TAU); ctx.fill();
+        }
       }
       // кусты у кромки земли
       for (let i = 0; i < 20; i++) {
@@ -920,84 +1001,186 @@
     ctx.closePath(); ctx.fill();
   }
 
+  // ---- платформы: почва слоями, камни, корни, трава и черепица
   function drawPlatform(p, th, t) {
     const x = p.x - cam.x, y = p.y - cam.y, w = p.w, h = p.h;
-    if (x + w < -60 || x > W + 60) return;
+    if (x + w < -90 || x > W + 90) return;
 
     if (p.type === 'wood') {
-      // дощатая платформа
-      ctx.fillStyle = 'rgba(0,0,0,.18)';
-      roundRect(x + 4, y + 8, w, h, 8); ctx.fill();
+      // мягкая тень под доской
+      const sh = ctx.createLinearGradient(0, y + h, 0, y + h + 16);
+      sh.addColorStop(0, 'rgba(16,20,26,.24)'); sh.addColorStop(1, 'rgba(16,20,26,0)');
+      ctx.fillStyle = sh; ctx.fillRect(x + 2, y + h, w - 4, 16);
+
       const g = ctx.createLinearGradient(x, y, x, y + h);
-      g.addColorStop(0, '#c98d5c'); g.addColorStop(1, '#8d5b38');
+      g.addColorStop(0, '#d09a66'); g.addColorStop(.55, '#bd8250'); g.addColorStop(1, '#8d5b38');
       ctx.fillStyle = g;
-      roundRect(x, y, w, h, 7); ctx.fill();
-      ctx.strokeStyle = 'rgba(90,54,32,.5)'; ctx.lineWidth = 1.4;
-      for (let i = 1; i < Math.max(2, w / 46); i++) {
-        const px = x + i * (w / Math.max(2, Math.round(w / 46)));
-        ctx.beginPath(); ctx.moveTo(px, y + 4); ctx.lineTo(px, y + h - 4); ctx.stroke();
+      roundRect(x, y, w, h, 6); ctx.fill();
+      ctx.strokeStyle = 'rgba(90,54,32,.55)'; ctx.lineWidth = 1.3;
+      ctx.stroke();
+
+      // доски и волокна
+      const planks = Math.max(2, Math.round(w / 52));
+      const pw = w / planks;
+      for (let i = 1; i < planks; i++) {
+        ctx.beginPath(); ctx.moveTo(x + i * pw, y + 3); ctx.lineTo(x + i * pw, y + h - 3); ctx.stroke();
       }
-      ctx.fillStyle = 'rgba(255,235,210,.5)';
-      ctx.fillRect(x + 4, y + 2, w - 8, 3);
+      ctx.strokeStyle = 'rgba(120,76,44,.35)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < planks; i++) {
+        for (let k = 0; k < 2; k++) {
+          const gy = y + 4 + noise(i * 3 + k + p.x, 81) * (h - 8);
+          ctx.beginPath();
+          ctx.moveTo(x + i * pw + 4, gy);
+          ctx.quadraticCurveTo(x + i * pw + pw * .5, gy + 2.5, x + i * pw + pw - 4, gy);
+          ctx.stroke();
+        }
+      }
+      // гвозди и верхний блик
+      ctx.fillStyle = 'rgba(70,44,28,.7)';
+      for (let i = 0; i < planks; i++) {
+        ctx.beginPath(); ctx.arc(x + i * pw + 5, y + 5, 1.4, 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + i * pw + pw - 5, y + 5, 1.4, 0, TAU); ctx.fill();
+      }
+      ctx.fillStyle = 'rgba(255,236,206,.5)';
+      ctx.fillRect(x + 3, y + 1.5, w - 6, 2);
       return;
     }
 
-    // земля: почва + травяная кромка со scallop-краем
-    const sg = ctx.createLinearGradient(x, y, x, y + h);
-    sg.addColorStop(0, th.soil[0]); sg.addColorStop(1, th.soil[1]);
-    ctx.fillStyle = sg;
-    roundRect(x, y, w, h, 10); ctx.fill();
+    // ---------- земля
+    const sh = ctx.createLinearGradient(0, y + h - 8, 0, y + h + 24);
+    sh.addColorStop(0, 'rgba(14,20,24,.3)'); sh.addColorStop(1, 'rgba(14,20,24,0)');
+    ctx.fillStyle = sh;
+    ctx.fillRect(x + 4, y + h - 6, w - 8, 30);
 
-    const gg = ctx.createLinearGradient(x, y - 4, x, y + 22);
-    gg.addColorStop(0, th.ground[0]); gg.addColorStop(1, th.ground[1]);
+    const sg = ctx.createLinearGradient(x, y + 6, x, y + h);
+    sg.addColorStop(0, th.soil[0]);
+    sg.addColorStop(.6, th.soil[0]);
+    sg.addColorStop(1, th.soil[1]);
+    ctx.fillStyle = sg;
+    roundRect(x, y + 8, w, h - 6, 12); ctx.fill();
+
+    // слои почвы
+    ctx.strokeStyle = 'rgba(0,0,0,.13)';
+    ctx.lineWidth = 1.3;
+    for (let i = 1; i <= 3; i++) {
+      const yy = y + 18 + i * (h / 4.6);
+      ctx.beginPath();
+      for (let sx = 0; sx <= w; sx += 20) {
+        const wob = Math.sin((p.x + sx) * .02 + i * 1.7) * 2.4;
+        if (sx === 0) ctx.moveTo(x + sx, yy + wob); else ctx.lineTo(x + sx, yy + wob);
+      }
+      ctx.stroke();
+    }
+
+    // камни и корни
+    const stones = Math.floor(w / 64);
+    for (let i = 0; i < stones; i++) {
+      const rx = x + 16 + noise(p.x + i, 71) * (w - 32);
+      const ry = y + 22 + noise(i + p.x, 72) * Math.max(4, h - 34);
+      const rr = 3 + noise(i + p.x, 73) * 4.5;
+      ctx.fillStyle = 'rgba(255,255,255,.14)';
+      ctx.beginPath(); ctx.ellipse(rx, ry, rr, rr * .62, .3, 0, TAU); ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,.12)';
+      ctx.beginPath(); ctx.ellipse(rx + 1, ry + 1.5, rr * .8, rr * .45, .3, 0, TAU); ctx.fill();
+    }
+
+    // травяная кромка
+    const gg = ctx.createLinearGradient(x, y - 8, x, y + 18);
+    gg.addColorStop(0, th.ground[0]);
+    gg.addColorStop(.7, th.ground[1]);
+    gg.addColorStop(1, th.ground[2] || th.ground[1]);
     ctx.fillStyle = gg;
     ctx.beginPath();
-    ctx.moveTo(x, y + 18);
-    const step = 18;
+    ctx.moveTo(x - 2, y + 16);
+    const step = 14;
     for (let sx = 0; sx <= w; sx += step) {
-      const bump = 5 + Math.sin((p.x + sx) * .03) * 4;
-      ctx.quadraticCurveTo(x + sx + step * .5, y - bump, x + sx + step, y + 3);
+      const bump = 5.5 + Math.sin((p.x + sx) * .05) * 3.2;
+      ctx.quadraticCurveTo(x + sx + step * .5, y - bump, x + sx + step, y + 2);
     }
-    ctx.lineTo(x + w, y + 22); ctx.lineTo(x, y + 22);
+    ctx.lineTo(x + w + 2, y + 16);
+    ctx.lineTo(x - 2, y + 16);
     ctx.closePath(); ctx.fill();
 
-    ctx.fillStyle = 'rgba(255,255,255,.16)';
-    ctx.fillRect(x + 6, y + 2, w - 12, 2.5);
+    // блик по кромке
+    ctx.strokeStyle = 'rgba(255,255,255,.24)';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.moveTo(x + 5, y + 1); ctx.lineTo(x + w - 5, y + 1); ctx.stroke();
+
+    // ночной контровой свет
     if (th.night) {
-      ctx.strokeStyle = 'rgba(178,224,206,.32)'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(x + 4, y + 1); ctx.lineTo(x + w - 4, y + 1); ctx.stroke();
+      ctx.strokeStyle = 'rgba(170,220,200,.34)';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x + 4, y); ctx.lineTo(x + w - 4, y); ctx.stroke();
     }
 
-    // крыши: черепичная кромка вместо травы
+    // черепица вместо травы на крышах
     if (th.decor === 'roofs') {
-      ctx.fillStyle = 'rgba(126,52,56,.5)';
-      for (let sx = 2; sx < w - 10; sx += 24) {
-        ctx.beginPath(); ctx.arc(x + sx + 10, y + 12, 9, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = 'rgba(122,48,52,.55)';
+      for (let sx = 2; sx < w - 10; sx += 22) {
+        ctx.beginPath(); ctx.arc(x + sx + 10, y + 13, 8.5, Math.PI, 0); ctx.fill();
       }
-      ctx.strokeStyle = 'rgba(255,196,158,.3)'; ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(255,196,158,.34)';
+      ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(x + 6, y + 3); ctx.lineTo(x + w - 6, y + 3); ctx.stroke();
       return;
     }
 
-    // трава и цветы детерминированно
-    ctx.strokeStyle = th.ground[1]; ctx.lineWidth = 2; ctx.lineCap = 'round';
-    const n = Math.floor(w / 26);
-    for (let i = 0; i < n; i++) {
-      if (noise(i + p.x, 31) > .55) continue;
-      const gx = x + 10 + i * 26 + noise(i + p.x, 32) * 10;
-      const gh = 7 + noise(i + p.x, 33) * 9;
-      const sway = Math.sin(t * 1.6 + i) * 2.2;
-      ctx.beginPath(); ctx.moveTo(gx, y + 2);
-      ctx.quadraticCurveTo(gx + sway * .5, y - gh * .6, gx + sway, y - gh);
+    // трава: травинки двух оттенков и цветы
+    const blades = Math.floor(w / 15);
+    for (let i = 0; i < blades; i++) {
+      const gx = x + 6 + i * 15 + noise(i + p.x, 32) * 7;
+      const gh = 6 + noise(i + p.x, 33) * 11;
+      const sway = Math.sin(t * 1.7 + i * .8) * 2.4;
+      ctx.strokeStyle = i % 3 === 0 ? th.ground[2] || th.ground[1] : th.ground[1];
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(gx, y + 2);
+      ctx.quadraticCurveTo(gx + sway * .4, y - gh * .55, gx + sway, y - gh);
       ctx.stroke();
-      if (noise(i + p.x, 34) > .86) {
-        ctx.fillStyle = i % 3 ? '#ffe08a' : '#ffb3c1';
-        ctx.beginPath(); ctx.arc(gx + sway, y - gh - 2, 2.6, 0, TAU); ctx.fill();
-        ctx.strokeStyle = th.ground[1];
+      if (noise(i + p.x, 34) > .88) {
+        ctx.fillStyle = i % 2 ? '#ffe08a' : '#ffb3c1';
+        ctx.beginPath(); ctx.arc(gx + sway, y - gh - 1.5, 2.4, 0, TAU); ctx.fill();
       }
     }
   }
 
+  // ---- лучи и птицы
+  function drawSunRays(th, t) {
+    if (th.night) return;
+    const sx = th.sun.x - cam.x * .04, sy = th.sun.y - cam.y * .04;
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.globalAlpha = .1;
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * TAU + t * .02;
+      const w = .06 + .03 * Math.sin(i * 2 + t * .3);
+      ctx.fillStyle = i % 2 ? th.sun.c : th.accent;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, 900, a - w, a + w);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  function drawBirds(t) {
+    const off = cam.x * .08;
+    for (let i = 0; i < 3; i++) {
+      const x = ((i * 340 + t * 12 - off) % (W + 300)) - 150;
+      const y = 120 + i * 38 + Math.sin(t * .8 + i) * 6;
+      const flap = Math.sin(t * 8 + i * 2) * 3;
+      ctx.strokeStyle = 'rgba(50, 60, 80, .35)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x - 7, y + flap);
+      ctx.quadraticCurveTo(x - 3, y - 3, x, y);
+      ctx.quadraticCurveTo(x + 3, y - 3, x + 7, y + flap);
+      ctx.stroke();
+    }
+  }
   function drawLantern(l, th, t) {
     const x = l.x - cam.x, y = l.y - cam.y;
     ctx.strokeStyle = 'rgba(40,46,60,.85)'; ctx.lineWidth = 5; ctx.lineCap = 'round';
@@ -1227,6 +1410,45 @@
       crows: [{ x: 1700, y: 300, amp: 70, len: 280, speed: .65, ph: 0 }, { x: 3000, y: 320, amp: 80, len: 300, speed: .55, ph: 3 }],
       puddles: [{ x: 900, y: 558, w: 140 }, { x: 1460, y: 558, w: 170 }, { x: 2700, y: 558, w: 150 }],
       mice: []
+    },
+    {
+      id: 6, title: 'Снежный двор', sub: 'Снег, наледь и скользкие крыши — тормози заранее.',
+      theme: 5, width: 4000, par: 62, spawn: { x: 150, y: 500 }, ice: true,
+      mission: { type: 'collect', need: 8, text: 'Собери 8 рыбок на снегу' },
+      platforms: [
+        plat(-100, 560, 640), plat(690, 560, 420), plat(1260, 560, 460), plat(1870, 560, 420),
+        plat(2440, 560, 480), plat(3070, 560, 930),
+        plat(520, 470, 150, 'wood'), plat(900, 420, 160, 'wood'), plat(1180, 470, 150, 'wood'),
+        plat(1560, 410, 160, 'wood'), plat(1820, 340, 150, 'wood'), plat(2200, 430, 160, 'wood'),
+        plat(2520, 370, 150, 'wood'), plat(2840, 440, 160, 'wood'), plat(3160, 380, 150, 'wood')
+      ],
+      fish: [
+        { x: 560, y: 430 }, { x: 940, y: 380 }, { x: 1220, y: 430 }, { x: 1600, y: 370 },
+        { x: 1860, y: 300 }, { x: 2240, y: 390 }, { x: 2880, y: 400 }, { x: 3200, y: 340 }
+      ],
+      door: { x: 3900, y: 560 }, lanterns: [], crows: [], puddles: [], mice: []
+    },
+    {
+      id: 7, title: 'Чердак', sub: 'Тёплый свет, скрипучие доски и подвижные полки.',
+      theme: 6, width: 3700, par: 68, spawn: { x: 150, y: 500 },
+      mission: { type: 'collect', need: 10, text: 'Собери 10 рыбок на чердаке' },
+      platforms: [
+        plat(-100, 560, 560), plat(610, 560, 380), plat(1140, 560, 360), plat(1650, 560, 340),
+        plat(2140, 560, 320), plat(2610, 560, 400), plat(3160, 560, 540),
+        plat(480, 470, 150, 'wood'), plat(860, 420, 150, 'wood'), plat(1080, 340, 140, 'wood'),
+        plat(1300, 450, 150, 'wood'), plat(1560, 380, 150, 'wood'), plat(1780, 300, 140, 'wood'),
+        plat(2000, 430, 150, 'wood'), plat(2200, 350, 140, 'wood'), plat(2420, 450, 150, 'wood'),
+        plat(2700, 380, 150, 'wood'), plat(2950, 370, 150, 'wood')
+      ],
+      fish: [
+        { x: 520, y: 430 }, { x: 900, y: 380 }, { x: 1120, y: 300 }, { x: 1340, y: 410 },
+        { x: 1600, y: 340 }, { x: 1820, y: 260 }, { x: 2040, y: 390 }, { x: 2240, y: 310 },
+        { x: 2740, y: 340 }, { x: 2990, y: 330 }
+      ],
+      door: { x: 3600, y: 560 },
+      lanterns: [{ x: 700, y: 560 }, { x: 1750, y: 560 }, { x: 2800, y: 560 }],
+      crows: [{ x: 1450, y: 300, amp: 60, len: 260, speed: .55, ph: 1 }, { x: 2500, y: 320, amp: 70, len: 280, speed: .7, ph: 3 }],
+      puddles: [], mice: []
     }
   ];
 
@@ -1243,6 +1465,7 @@
     cat.vx = 0; cat.vy = 0; cat.onGround = false; cat.facing = 1;
     cat.sq = 1; cat.sqv = 0; cat.tilt = 0; cat.blink = 0; cat.blinkTimer = 1.5;
     cat.groundY = L.spawn.y + 26;
+    cat.standOn = null;
     cat.lastSafe = { x: L.spawn.x, y: L.spawn.y };
     cam.x = clamp(cat.x - W / 2, 0, Math.max(0, L.width - W));
     cam.y = 0; cam.shake = 0;
@@ -1258,15 +1481,12 @@
     game.escortDone = false;
     game.doorToasted = false;
 
-    setWeather(game.mice.length || L.theme === 1 ? 'leaves' : L.mission.type === 'timed' ? 'rain' : 'none');
-    if (L.theme === 4) setWeather('rain');
-    if (L.theme === 1 && L.mission.type !== 'timed') setWeather('leaves');
-    if (L.theme === 0 || L.theme === 2 || L.theme === 3) setWeather('none');
+    setWeather({ 1: 'leaves', 4: 'rain', 5: 'snow' }[L.theme] || 'none');
 
     // движущиеся платформы в третьей главе
     game.platforms = L.platforms.map((p, i) => {
       const out = { ...p, baseX: p.x, baseY: p.y, dx: 0, dy: 0 };
-      if (L.id === 3 && p.type === 'wood' && i % 3 === 0) {
+      if ((L.id === 3 || L.id === 7) && p.type === 'wood' && i % 3 === 0) {
         out.move = { axis: i % 2 ? 'y' : 'x', amp: 46, speed: .9, ph: i };
       }
       return out;
@@ -1297,113 +1517,145 @@
     return best;
   }
 
+  // ---- физика игрока -------------------------------------------------------
+  // Порядок важен: сначала перенос движущейся платформой, потом ввод, потом
+  // интегрирование и разрешение столкновений по осям, и только в конце — зонд
+  // опоры. Так кот не теряет платформу и не висит в воздухе.
+  const FOOT = 22, HALF = 20, SUPPORT = 15;
+
+  function supportUnder(x, feetY, tol) {
+    let best = null;
+    for (const p of game.platforms) {
+      const px = p.x + (p.dx || 0), py = p.y + (p.dy || 0);
+      if (x + SUPPORT < px || x - SUPPORT > px + p.w) continue;
+      if (feetY >= py - 1 && feetY <= py + (tol || 3)) {
+        if (!best || py < best.y) best = { p, y: py };
+      }
+    }
+    return best;
+  }
+
   function stepPlayer(dt) {
     const wasGround = cat.onGround;
+    const prevFeet = cat.y + FOOT;
+    const prevHead = cat.y - FOOT;
 
-    // горизонталь
+    // 1. если стояли на движущейся платформе — едем вместе с ней
+    if (cat.standOn && cat.standOn.move) {
+      cat.x += cat.standOn.dxPrev || 0;
+      cat.y += cat.standOn.dyPrev || 0;
+    }
+    cat.standOn = null;
+
+    // 2. горизонтальный ввод
     let dir = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
     if (game.stun > 0) dir = 0;
-    const inPuddle = game.puddles.some(p => Math.abs(cat.x - (p.x + p.w / 2)) < p.w / 2 && Math.abs(cat.y + 22 - p.y) < 14);
+    const inPuddle = game.puddles.some(p =>
+      Math.abs(cat.x - (p.x + p.w / 2)) < p.w / 2 && Math.abs(cat.y + FOOT - p.y) < 14);
+    const ice = !!(level && level.ice);
     const speedCap = MAXSPEED * (inPuddle ? .55 : 1);
     if (dir) {
-      cat.vx += dir * ACC * dt;
+      cat.vx += dir * (ice ? 2300 : ACC) * (cat.onGround ? 1 : .8) * dt;
       cat.facing = dir;
-      cat.vx = clamp(cat.vx, -speedCap, speedCap);
-    } else {
-      const fr = FRICTION * dt;
+    } else if (cat.onGround) {
+      const fr = (ice ? 620 : FRICTION) * dt;
       cat.vx = Math.abs(cat.vx) <= fr ? 0 : cat.vx - sign(cat.vx) * fr;
+    } else {
+      cat.vx *= 1 - .6 * dt;
     }
+    cat.vx = clamp(cat.vx, -speedCap, speedCap);
 
-    // прыжок: coyote time + буфер нажатия
+    // 3. прыжок: coyote time + буфер нажатия, оба сбрасываются при прыжке
     cat.coyote = cat.onGround ? .1 : Math.max(0, cat.coyote - dt);
     cat.buffer = keys.jumpEdge ? .12 : Math.max(0, cat.buffer - dt);
     if (cat.buffer > 0 && cat.coyote > 0 && game.stun <= 0) {
       cat.vy = -JUMP;
       cat.onGround = false; cat.coyote = 0; cat.buffer = 0;
-      cat.sq = 1.18; cat.sqv = 0;
-      puff(cat.x, cat.y + 22, 5, .8);
+      cat.sq = 1.18;
+      puff(cat.x, cat.y + FOOT, 5, .8);
       Audio2.sfx.jump();
     }
-    // короткий прыжок: однократный срез скорости в момент отпускания (как в Celeste)
+    // короткий прыжок: однократный срез скорости в момент отпускания
     if (cat.jumpHeld && !keys.jump && cat.vy < -200) cat.vy *= 0.55;
     cat.jumpHeld = keys.jump;
 
-    const gMul = (keys.jump && Math.abs(cat.vy) < 170) ? 0.72 : (cat.vy > 0 ? FALL_MULT : 1);
+    // 4. гравитация: только мягкое сопротивление у апекса, без зависаний
+    let gMul = cat.vy > 0 ? FALL_MULT : 1;
+    if (keys.jump && Math.abs(cat.vy) < 120) gMul = .85;
     cat.vy = Math.min(cat.vy + GRAV * gMul * dt, MAXFALL);
 
-    // X
+    // 5. движение по X, твёрдые платформы отталкивают
     cat.x += cat.vx * dt;
-    const box = playerBox();
     for (const p of game.platforms) {
       if (p.type === 'wood') continue;
-      const px = p.x + p.dx, py = p.y + p.dy;
-      if (box.x + box.w > px && box.x < px + p.w && box.y + box.h > py && box.y < py + p.h) {
-        if (cat.vx > 0) cat.x = px - 24; else if (cat.vx < 0) cat.x = px + p.w + 24;
+      const px = p.x + (p.dx || 0), py = p.y + (p.dy || 0);
+      if (cat.x + HALF > px && cat.x - HALF < px + p.w &&
+          cat.y + FOOT > py + 2 && cat.y - FOOT < py + p.h) {
+        if (cat.vx > 0) cat.x = px - HALF;
+        else if (cat.vx < 0) cat.x = px + p.w + HALF;
         cat.vx = 0;
       }
     }
-    cat.x = clamp(cat.x, 20, level.width - 20);
+    cat.x = clamp(cat.x, 18, level.width - 18);
 
-    // Y
-    const prevFeet = cat.y + 22;
+    // 6. движение по Y: приземление по верхней кромке, удар головой по нижней
     cat.y += cat.vy * dt;
     cat.onGround = false;
-    let groundY = null;
+    let impact = 0;
     for (const p of game.platforms) {
-      const px = p.x + p.dx, py = p.y + p.dy;
-      const feet = cat.y + 22;
-      const overlapX = cat.x + 20 > px && cat.x - 20 < px + p.w;
-      if (!overlapX) continue;
-      if (p.type === 'wood') {
-        if (cat.vy >= 0 && prevFeet <= py + 8 && feet >= py) {
-          cat.y = py - 22; cat.vy = 0; cat.onGround = true; groundY = py;
+      const px = p.x + (p.dx || 0), py = p.y + (p.dy || 0);
+      if (cat.x + SUPPORT < px || cat.x - SUPPORT > px + p.w) continue;
+      const feet = cat.y + FOOT;
+      if (cat.vy >= 0) {
+        if (prevFeet <= py + 6 && feet >= py) {
+          impact = Math.max(impact, cat.vy);
+          cat.y = py - FOOT; cat.vy = 0;
+          cat.onGround = true; cat.standOn = p;
         }
-      } else if (feet > py && cat.y - 22 < py + p.h) {
-        if (cat.vy >= 0 && prevFeet <= py + 12) {
-          cat.y = py - 22; cat.vy = 0; cat.onGround = true; groundY = py;
-        } else if (cat.vy < 0) {
-          cat.y = py + p.h + 22; cat.vy = 0;
-        }
-      }
-    }
-    // тащим платформу
-    if (cat.onGround && groundY !== null) {
-      cat.groundY = groundY;
-      const stand = game.platforms.find(p => Math.abs((p.y + p.dy) - groundY) < 1 && cat.x + 20 > p.x + p.dx && cat.x - 20 < p.x + p.dx + p.w);
-      if (stand && stand.move) cat.x += stand.dxPrev || 0;
-      // контрольная точка: запоминаем безопасное место, если до краёв далеко
-      if (stand) {
-        const leftPad = cat.x - (stand.x + stand.dx);
-        const rightPad = (stand.x + stand.dx + stand.w) - cat.x;
-        if (leftPad > 46 && rightPad > 46) {
-          cat.lastSafe = { x: cat.x, y: cat.y };
+      } else if (p.type !== 'wood') {
+        const bottom = py + p.h;
+        if (prevHead >= bottom - 6 && cat.y - FOOT <= bottom) {
+          cat.y = bottom + FOOT; cat.vy = 0;
         }
       }
     }
 
-    if (cat.y > 900) { respawn(); }
+    // 7. зонд опоры: стоишь на кромке в пределах 3 px — держимся
+    if (!cat.onGround) {
+      const sup = supportUnder(cat.x, cat.y + FOOT, 3);
+      if (sup && cat.vy >= -1) {
+        cat.y = sup.y - FOOT; cat.vy = 0;
+        cat.onGround = true; cat.standOn = sup.p;
+      }
+    }
 
-    // squash & stretch
+    if (cat.y > 900) respawn();
+
+    // 8. контрольная точка и эффекты приземления
+    if (cat.onGround && cat.standOn) {
+      const p = cat.standOn;
+      const leftPad = cat.x - (p.x + (p.dx || 0));
+      const rightPad = (p.x + (p.dx || 0) + p.w) - cat.x;
+      if (leftPad > 46 && rightPad > 46) cat.lastSafe = { x: cat.x, y: cat.y };
+    }
     if (cat.onGround && !wasGround) {
-      const impact = clamp(Math.abs(cat.vyPrev || 0) / 900, 0, 1);
-      cat.sq = 1 - .18 * impact;
-      puff(cat.x, cat.y + 22, 4 + impact * 6, .9);
-      addShake(.14 * impact + .04);
+      const k = clamp(Math.abs(impact) / 900, 0, 1);
+      cat.sq = 1 - .2 * k;
+      puff(cat.x, cat.y + FOOT, 4 + Math.round(k * 6), .9);
+      addShake(.12 * k + .03);
       Audio2.sfx.land();
     }
-    cat.vyPrev = cat.vy;
+
     cat.sq = damp(cat.sq, 1, 14, dt);
     cat.tilt = damp(cat.tilt, clamp(cat.vx / MAXSPEED, -1, 1), 8, dt);
 
-    // ходьба
+    // 9. шаг и мимика
     if (cat.onGround && Math.abs(cat.vx) > 20) {
       cat.walkPhase += dt * (5.4 + Math.abs(cat.vx) / 120);
       if (Math.random() < dt * 6) Audio2.sfx.step();
     } else {
       cat.walkPhase = damp(cat.walkPhase, Math.round(cat.walkPhase / Math.PI) * Math.PI, 6, dt);
     }
-
-    // мигание и уши
     cat.blinkTimer -= dt;
     if (cat.blinkTimer <= 0) { cat.blink = 1; cat.blinkTimer = rand(2.2, 5.5); }
     if (cat.blink > 0) cat.blink = Math.max(0, cat.blink - dt * 3.2);
@@ -1495,9 +1747,10 @@
     for (const p of game.platforms) {
       if (!p.move) continue;
       const off = Math.sin(game.t * p.move.speed + p.move.ph) * p.move.amp;
-      const prev = p.dx;
+      const prevX = p.dx, prevY = p.dy;
       if (p.move.axis === 'x') { p.dx = off; p.dy = 0; } else { p.dy = off; p.dx = 0; }
-      p.dxPrev = p.dx - prev;
+      p.dxPrev = p.dx - prevX;
+      p.dyPrev = p.dy - prevY;
     }
 
     stepPlayer(dt);
@@ -1580,7 +1833,7 @@
     if (!level) return;
     const look = clamp(cat.vx * .28, -110, 110);
     const targetX = clamp(cat.x + look - W / 2, 0, Math.max(0, level.width - W));
-    const targetY = clamp(cat.y - H * .70, -80, 120);
+    const targetY = clamp(cat.y - H * .62, -80, 120);
     cam.x = damp(cam.x, targetX, 4.5, dt);
     cam.y = damp(cam.y, targetY, 3.6, dt);
     if (cam.shake > 0) cam.shake = Math.max(0, cam.shake - dt * 1.8);
@@ -1605,6 +1858,7 @@
     ctx.rotate(0);
 
     drawSky(th, t);
+    drawBirds(t);
     drawHills(th, t);
     drawMidLayer(th, t);
     drawNearLayer(th, t);
@@ -1690,6 +1944,13 @@
     const vg = ctx.createRadialGradient(W / 2, H * .48, H * .3, W / 2, H * .5, H * .92);
     vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(8,12,22,.42)');
     ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+
+    if (grainPattern) {
+      ctx.globalAlpha = .5;
+      ctx.fillStyle = grainPattern;
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalAlpha = 1;
+    }
 
     ctx.restore();
   }
