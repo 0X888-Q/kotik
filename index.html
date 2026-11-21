@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Котик — управляемый прототип</title>
+<link rel="icon" href="favicon.ico">
 <style>
   :root { color-scheme: dark; }
   html, body { margin: 0; height: 100%; overflow: hidden; background: #0f1420;
@@ -5315,6 +5316,20 @@
     // squash вешаем на узел кота, а не на корень сцены: в корне лежит ещё и двор
     catRig = root.getObjectByName('Риг_кота');
     catRest = catRig ? catRig.scale.clone() : null;
+
+    // «Свечение» окна было плоскостью 1.89 при окне 0.48 — налезало на стену бежевым диском
+    var glow = root.getObjectByName('Окно_свечение');
+    if (glow) {
+      glow.scale.multiplyScalar(0.28);
+      if (glow.material) {
+        glow.material = glow.material.clone();
+        glow.material.color.setHex(0xffe6b0);
+        glow.material.emissive = new THREE.Color(0xffc978);
+        glow.material.emissiveIntensity = 0.6;
+        glow.material.transparent = true;
+        glow.material.opacity = 0.92;
+      }
+    }
 
     mixer = new THREE.AnimationMixer(root);
     gltf.animations.forEach(function (c) { actions[c.name] = mixer.clipAction(c); });
