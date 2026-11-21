@@ -5075,6 +5075,57 @@
   var bestKey = 'kotik_best_L1';
   var best = parseFloat(localStorage.getItem(bestKey) || '0') || 0;
 
+  // ---------------- juice: тряска камеры, hit-stop, squash & stretch, вспышки
+  var catRig = null, catRest = null;
+  var trauma = 0, hitStopEnd = 0;
+  var shakeOn = !window.matchMedia || !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var sq = { x: 1, y: 1 };
+  var fx = [];
+  var ringGeo = new THREE.RingGeometry(0.18, 0.26, 32);
+
+  // Тряска копится (0..1), эффект — trauma^2: лёгкие события почти не трясут, тяжёлые бьют.
+  function addTrauma(amount) {
+    if (!shakeOn) return;
+    trauma = Math.min(1, trauma + amount);
+  }
+
+  // Короткая заморозка времени: замедляем только dt игрового мира, тряска живёт в реальном времени.
+  function hitStop(ms) {
+    if (!shakeOn) return;
+    hitStopEnd = Math.max(hitStopEnd, performance.now() + ms);
+  }
+
+  // Squash & stretch: тянем одну ось, сжимаем другие, потом экспоненциально возвращаемся к 1.
+  function squash(sy) {
+    sq.y = sy;
+    sq.x = 1 / Math.sqrt(sy);
+  }
+
+  var hudStyle = document.createElement('style');
+  hudStyle.textContent =
+    '@keyframes hudpop{0%{transform:scale(1)}35%{transform:scale(1.3);color:#ffd08a}100%{transform:scale(1)}}' +
+    '#score.pop{animation:hudpop .42s ease-out}';
+  document.head.appendChild(hudStyle);
+
+  function hudPulse() {
+    var el = document.getElementById('score');
+    if (!el) return;
+    el.classList.remove('pop');
+    void el.offsetWidth;
+    el.classList.add('pop');
+  }
+
+  function pickupBurst(pos) {
+    var mat = new THREE.MeshBasicMaterial({
+      color: 0xffd08a, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false
+    });
+    var m = new THREE.Mesh(ringGeo, mat);
+    m.position.copy(pos);
+    m.rotation.x = -Math.PI / 2;
+    scene.add(m);
+    fx.push({ mesh: m, life: 0, dur: 0.5 });
+  }
+
   function fmt(v) { return v.toFixed(1); }
 
   function updateTime() {
@@ -5174,7 +5225,8 @@
   }
 
   function updateSoundLabel() {
-    document.getElementById('snd').textContent = 'звук: ' + (muted ? 'выкл' : 'вкл') + ' (M)';
+    document.getElementById('snd').textContent =
+      'звук: ' + (muted ? 'выкл' : 'вкл') + ' (M) · тряска: ' + (shakeOn ? 'вкл' : 'выкл') + ' (K)';
   }
 
   function spawnFish() {
@@ -5260,11 +5312,17 @@
     root.traverse(function (o) { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     scene.add(root);
 
+    // squash вешаем на узел кота, а не на корень сцены: в корне лежит ещё и двор
+    catRig = root.getObjectByName('Риг_кота');
+    catRest = catRig ? catRig.scale.clone() : null;
+
     mixer = new THREE.AnimationMixer(root);
     gltf.animations.forEach(function (c) { actions[c.name] = mixer.clipAction(c); });
-    mixer.addEventListener('finished', function () {
+    mixer.addEventListener('finished', function (ev) {
+      var wasHop = !!(ev && ev.action && ev.action === actions.Hop);
       oneShot = null;
       fade(baseClip(), { fade: 0.25, force: true });
+      if (wasHop) { squash(0.86); addTrauma(0.45); }
     });
 
     fade('Idle', { fade: 0 });
@@ -5273,6 +5331,13 @@
     window.__modelReady = true;
     window.__clips = Object.keys(actions);
     window.__cat = root;
+    window.__cam = camera;
+    window.__fx = {
+      get trauma() { return trauma; },
+      get sq() { return { x: sq.x, y: sq.y }; },
+      get hitStop() { return performance.now() < hitStopEnd; },
+      get rings() { return fx.length; }
+    };
     window.__api = { fade: fade, actions: actions };
     window.__game = {
       get score() { return score; },
@@ -5282,6 +5347,13 @@
       get best() { return best; },
       get level() { return level; },
       get maxLevel() { return MAX_LEVEL; },
+      get trauma() { return trauma; },
+      setShake: function (v) {
+        shakeOn = !!v;
+        if (!shakeOn) { trauma = 0; hitStopEnd = 0; }
+        updateSoundLabel();
+        return shakeOn;
+      },
       get fishes() { return fish; },
       nextLevel: function () { startLevel(level + 1); },
       restart: function () { startLevel(level); },
@@ -5308,12 +5380,21 @@
   window.addEventListener('keydown', function (ev) {
     var k = ev.key.toLowerCase();
     if (['w','a','s','d','e','f','g','h','r',' '].indexOf(k) >= 0) ev.preventDefault();
-    if (k === ' ') { if (!oneShot) fade('Hop', { once: true }); return; }
+    if (k === ' ') {
+      if (!oneShot) { fade('Hop', { once: true }); squash(1.16); addTrauma(0.18); }
+      return;
+    }
     if (k === 'e') { if (!oneShot) fade('Sniff', { once: true }); return; }
     if (k === 'f') { if (!oneShot) { fade('Yawn', { once: true }); meow(); } return; }
     if (k === 'g') { if (!oneShot) fade('Wash', { once: true }); return; }
     if (k === 'h') { if (!oneShot) { fade('Play', { once: true }); tone(700, 900, 0.12, 0.06, 'triangle'); } return; }
     if (k === 'm') { muted = !muted; updateSoundLabel(); initAudio(); return; }
+    if (k === 'k') {
+      shakeOn = !shakeOn;
+      if (!shakeOn) { trauma = 0; hitStopEnd = 0; }
+      updateSoundLabel();
+      return;
+    }
     if (k === 'r') {
       if (currentName === 'Sleep') { fade('Idle'); }
       else if (!oneShot) { fade('Sleep', { force: true }); }
@@ -5336,9 +5417,35 @@
   });
 
   renderer.setAnimationLoop(function () {
-    var dt = Math.min(clock.getDelta(), 0.05);
+    var realDt = Math.min(clock.getDelta(), 0.05);
+    var slowed = performance.now() < hitStopEnd;
+    var dt = slowed ? realDt * 0.18 : realDt;
     var t = clock.elapsedTime;
     if (mixer) mixer.update(dt);
+
+    // тряска затухает в реальном времени: на hit-stop она не должна замирать на смещении
+    if (trauma > 0) trauma = Math.max(0, trauma - 0.9 * realDt);
+    if (sq.x !== 1 || sq.y !== 1) {
+      var ease = 1 - Math.exp(-16 * realDt);
+      sq.x += (1 - sq.x) * ease;
+      sq.y += (1 - sq.y) * ease;
+      if (Math.abs(sq.x - 1) < 0.002 && Math.abs(sq.y - 1) < 0.002) { sq.x = 1; sq.y = 1; }
+      if (catRig && catRest) {
+        catRig.scale.set(catRest.x * sq.x, catRest.y * sq.y, catRest.z * sq.x);
+      }
+    }
+    for (var q = fx.length - 1; q >= 0; q--) {
+      var e = fx[q];
+      e.life += realDt;
+      var p = Math.min(1, e.life / e.dur);
+      e.mesh.scale.setScalar(0.6 + p * 1.9);
+      e.mesh.material.opacity = 0.9 * (1 - p);
+      if (p >= 1) {
+        scene.remove(e.mesh);
+        e.mesh.material.dispose();
+        fx.splice(q, 1);
+      }
+    }
     if (t0 !== null && !won) {
       elapsed = (performance.now() - t0) / 1000;
       updateTime();
@@ -5355,6 +5462,9 @@
         if (Math.sqrt(dx0 * dx0 + dz0 * dz0) < 0.55) {
           f.visible = false;
           score += 1;
+          pickupBurst(f.position);
+          hudPulse();
+          if (score < TOTAL) { hitStop(60); addTrauma(0.32); }
           if (score >= TOTAL) {
             won = true;
             elapsed = (performance.now() - (t0 || performance.now())) / 1000;
@@ -5363,6 +5473,8 @@
               try { localStorage.setItem(bestKey, best.toFixed(2)); } catch (e) {}
             }
             chime(true);
+            addTrauma(0.55);
+            squash(1.12);
             if (level < MAX_LEVEL) {
               setTimeout(function () { startLevel(level + 1); }, 1600);
             }
@@ -5391,7 +5503,24 @@
       }
     }
     controls.update();
-    renderer.render(scene, camera);
+
+    // Трясём позицию камеры после controls.update() и сразу возвращаем назад:
+    // OrbitControls не должен видеть смещение, иначе оно накопится в его состоянии.
+    var sh = trauma * trauma;
+    if (sh > 0.0001) {
+      var px = camera.position.x, py = camera.position.y, pz = camera.position.z;
+      var roll = camera.rotation.z;
+      var amp = 0.12 * sh;
+      camera.position.x += Math.sin(t * 37.1) * amp;
+      camera.position.y += Math.sin(t * 29.3 + 1.7) * amp * 0.7;
+      camera.position.z += Math.sin(t * 23.7 + 3.1) * amp;
+      camera.rotation.z = roll + Math.sin(t * 31.9) * 0.02 * sh;
+      renderer.render(scene, camera);
+      camera.position.set(px, py, pz);
+      camera.rotation.z = roll;
+    } else {
+      renderer.render(scene, camera);
+    }
   });
 })();
 </script>
